@@ -1,0 +1,47 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: document
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  replicas: 1
+  image: registry.io/kafka-connect:latest
+  bootstrapServers: cluster-kafka-bootstrap:9092
+  config:
+    group.id: document
+    offset.storage.topic: document-connect-offsets
+    config.storage.topic: document-connect-configs
+    status.storage.topic: document-connect-status
+    # -1 means it will use the default replication factor configured in the broker
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+  template:
+    pod:
+      affinity:
+        {{- .Values.master.affinity | toYaml | nindent 8 }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: source-document-order-reviews
+  labels:
+    strimzi.io/cluster: document
+spec:
+  tasksMax: 1
+  class: com.mongodb.kafka.connect.MongoSourceConnector
+  autoRestart:
+    enabled: true
+  config:
+    topic.prefix: order_reviews
+    connection.uri: mongodb://admin:password@document.io:27017/?authSource=admin&replicaSet=rs0
+    database: ecommerce
+    collection: order_reviews
+    publish.full.document.only: true
+    startup.mode: copy_existing
+    pipeline: >
+      [{"$match":{"operationType":{"$in":["insert","update","replace"]}}},{"$project":{"_id":1,"fullDocument":1,"ns":1,"documentKey":1}}]
+    output.json.formatter: com.mongodb.kafka.connect.source.json.formatter.SimplifiedJson
+---

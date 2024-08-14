@@ -1,0 +1,259 @@
+---
+- hosts: worker
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Ensure DNS config directory exists
+      file:
+        path: /etc/systemd/resolved.conf.d
+        state: directory
+
+    - name: Configure DNS settings
+      copy:
+        dest: /etc/systemd/resolved.conf.d/dns_servers.conf
+        content: |
+          [Resolve]
+          DNS=8.8.8.8 1.1.1.1
+      notify: restart systemd-resolved
+
+    - name: Disable swap permanently
+      block:
+        - name: Disable swap
+          command: swapoff -a
+          changed_when: false
+        - name: Modify fstab
+          lineinfile:
+            path: /etc/fstab
+            regexp: '^\s*([^#]\S+.*\sswap\s.*)$'
+            line: '#\1'
+            backrefs: true
+      become: true
+
+    - name: Enable overlay network
+      copy:
+        dest: /etc/modules-load.d/99-k8s.conf
+        content: |
+          overlay
+          br_netfilter
+      notify: load k8s module
+
+    - name: Create sysctl params
+      copy:
+        dest: /etc/sysctl.d/99-k8s.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward                 = 1
+      notify: apply sysctl
+
+    - name: Update apt cache
+      apt:
+        update_cache: true
+
+    - name: Auto-remove unnecessary packages
+      apt:
+        autoremove: yes
+
+    - name: Clean up apt cache
+      apt:
+        autoclean: yes
+
+    - name: Install utilities
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - software-properties-common
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - jq
+
+    - name: Install CRI-O
+      block:
+        - name: Add key
+          apt_key:
+            url: https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key
+            keyring: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+            state: present
+        - name: Add repository
+          apt_repository:
+            repo: deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /
+            state: present
+            filename: cri-o
+        - name: Update apt
+          apt:
+            update_cache: true
+            cache_valid_time: 3600
+        - name: Install packages
+          apt:
+            name: cri-o
+            update_cache: true
+            state: present
+        - name: Reload configs
+          systemd: daemon_reload=true
+        - name: Enable Cri-O
+          systemd:
+            name: crio
+            enabled: true
+        - name: Restart Cri-O
+          systemd:
+            name: crio
+            daemon_reload: true
+            state: restarted
+
+    - name: Install Kubernetes
+      block:
+        - name: Add key
+          apt_key:
+            url: https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key
+            keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+            state: present
+        - name: Add repository
+          apt_repository:
+            repo: deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
+            state: present
+            filename: kubernetes
+        - name: Update apt
+          apt:
+            update_cache: true
+            cache_valid_time: 3600
+        - name: Install packages
+          apt:
+            name: "{{ item }}"
+            update_cache: true
+            state: present
+          loop:
+            - kubelet
+            - kubeadm
+
+    - name: Install Docker
+      block:
+        - name: Add Docker GPG apt Key
+          apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+
+        - name: Add repository into sources list
+          apt_repository:
+            repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+            state: present
+            filename: docker
+
+        - name: Install Docker and related packages
+          apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-buildx-plugin
+              - docker-compose-plugin
+            state: present
+            update_cache: true
+
+        - name: Add Docker group
+          group:
+            name: docker
+            state: present
+
+        - name: Add user to Docker group
+          user:
+            name: "{{ item }}"
+            groups: docker
+            append: true
+          loop:
+            - worker
+
+        - name: Enable and start Docker services
+          systemd:
+            name: "{{ item }}"
+            enabled: true
+            state: started
+          loop:
+            - docker.service
+            - containerd.service
+
+    - name: Setup Registry
+      block:
+        - name: Install nfs-common
+          apt:
+            name:
+              - nfs-common
+            state: present
+            update_cache: true
+
+        - name: Create registry directory
+          file:
+            path: /etc/registry
+            state: directory
+
+        - name: Config fstab
+          lineinfile:
+            path: /etc/fstab
+            line: "{{ item }}"
+            state: present
+          loop:
+            - '192.168.1.8:/registry  /registry nfs default 0 0'
+
+        - name: Run mount
+          command: mount -a
+          changed_when: false
+
+        - name: Edit hosts
+          lineinfile:
+            path: /etc/hosts
+            line: "{{ item }}"
+            state: present
+          loop:
+            - "127.0.0.1  registry.io"
+
+        - name: Create registry compose.yaml
+          copy:
+            dest: /etc/registry/compose.yaml
+            content: |
+              services:
+                registry:
+                  image: registry
+                  container_name: registry
+                  restart: unless-stopped
+                  ports:
+                    - "80:5000"
+                  volumes:
+                    - /registry:/var/lib/registry
+          notify: run docker-compose
+
+    - name: Install packages
+      block:
+        - name: Install snap packages
+          snap:
+            name:
+              - task
+            classic: yes
+
+        - name: Install apt packages
+          apt:
+            name:
+              - tree
+            state: present
+            update_cache: true
+
+  handlers:
+    - name: restart systemd-resolved
+      systemd:
+        name: systemd-resolved
+        state: restarted
+
+    - name: load k8s module
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: apply sysctl
+      shell: sudo sysctl --system
+      become: true
+
+    - name: run docker-compose
+      shell: docker compose -f /etc/registry/compose.yaml up -d

@@ -1,0 +1,122 @@
+nameOverride: ""
+fullnameOverride: ""
+
+global:
+  fullnameOverride: dagster
+  serviceAccountName: dagster
+
+master:
+  affinity: &masterAffinity
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                  - master
+
+  selector: &masterSelector
+    kubernetes.io/hostname: master
+
+  volume: &masterVolume
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/role
+              operator: In
+              values:
+                - master
+
+worker:
+  affinity: &workerAffinity
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 50
+          preference:
+            matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                  - worker
+        - weight: 10
+          preference:
+            matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                  - master
+
+kaggle:
+  json: ""
+
+dagster:
+  enabled: true
+
+  postgresql:
+    postgresqlDatabase: dagster
+    postgresqlUsername: dagster
+    postgresqlPassword: password
+    persistence:
+      existingClaim: dagster-postgresql-pvc
+      size: 4Gi
+    master:
+      nodeSelector:
+        kubernetes.io/hostname: master
+
+  rabbitmq:
+    enabled: true
+    persistence:
+      existingClaim: dagster-rabbitmq-pvc
+      size: 4Gi
+    nodeSelector:
+      kubernetes.io/hostname: master
+
+  dagsterDaemon:
+    runCoordinator:
+      config:
+        queuedRunCoordinator:
+          maxConcurrentRuns: 18
+    nodeSelector:
+      kubernetes.io/hostname: master
+
+  runLauncher:
+    type: K8sRunLauncher
+
+  dagsterWebserver:
+    nameOverride: display
+    image:
+      repository: "registry.io/dagster-webserver"
+      pullPolicy: Always
+      tag: latest
+    service:
+      type: LoadBalancer
+    nodeSelector:
+      kubernetes.io/hostname: master
+
+  dagster-user-deployments:
+    deployments:
+      - name: ecommerce
+        image:
+          repository: "registry.io/dagster-ecommerce"
+          pullPolicy: Always
+          tag: latest
+        dagsterApiGrpcArgs:
+          - "--module-name"
+          - "ecommerce"
+        port: 3030
+        includeConfigInLaunchedRuns:
+          enabled: true
+        volumes:
+          - name: kaggle
+            secret:
+              secretName: dagster-kaggle-secret
+        volumeMounts:
+          - mountPath: /root/.kaggle
+            readOnly: true
+            name: kaggle
+        affinity:
+          *workerAffinity
+        env:
+          name: SPARK_VERSION
+          value: "3.5"

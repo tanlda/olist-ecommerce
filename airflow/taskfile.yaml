@@ -1,0 +1,18 @@
+version: "3"
+
+tasks:
+  build:
+    cmds:
+      - docker build -t {{ .REPO }}/{{ .NAME }}:{{ .TAG }} .
+      - docker push {{ .REPO }}/{{ .NAME }}:{{ .TAG }}
+    vars:
+      REPO: '{{ .REPO | default "registry.io" }}'
+      NAME: '{{ .NAME | default "airflow" }}'
+      TAG: '{{ .TAG | default "0.1.1.19" }}'
+
+  clean:
+    cmds:
+      - for: [ "Failed", "Terminated", "Succeeded" ]
+        cmd: kubectl delete pods --force --field-selector status.phase={{ .ITEM }} --namespace {{ .NS }}
+    vars:
+      NS: '{{ .NS | default "spark" }}'

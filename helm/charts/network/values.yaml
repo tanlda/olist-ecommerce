@@ -1,0 +1,20 @@
+global: { }
+nameOverride: ""
+fullnameOverride: ""
+
+calico:
+  enabled: true
+  controller:
+    runOnControlPlane: true
+  installation:
+    enabled: true
+  apiServer:
+    enabled: true
+
+metallb:
+  enabled: true
+  fullnameOverride: metallb
+
+  ip:
+    #address: ""
+    address: 192.168.1.16-192.168.1.128

@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dagster-k8s
+  namespace: dagster
+rules:
+  - apiGroups: [ "batch" ]
+    resources: [ "jobs", "jobs/status" ]
+    verbs: [ "*" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods", "pods/log", "pods/status" ]
+    verbs: [ "*" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dagster-k8s
+  namespace: dagster
+subjects:
+  - kind: ServiceAccount
+    name: dagster
+    namespace: dagster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dagster-k8s

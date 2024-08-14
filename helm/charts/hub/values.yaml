@@ -1,0 +1,50 @@
+global: { }
+
+datahub:
+  enabled: true
+
+  kafkaSetupJob:
+    enabled: false  # skip
+
+  elasticsearchSetupJob:
+    enabled: false  # skip
+
+  mysqlSetupJob:
+    enabled: false  # skip
+
+  datahubSystemUpdate:
+    nonblocking:
+      enabled: true
+    annotations: { }
+
+  acryl-datahub-actions:
+    ingestionSecretFiles:
+      name: datahub-ingestion-secrets
+      defaultMode: "0444"
+
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 300m
+        memory: 256Mi
+
+source:
+  type: iceberg
+  config:
+    env: DEV
+    catalog:
+      iceberg:
+        type: rest
+        uri: http://iceberg.io
+        s3.access-key-id: admin
+        s3.secret-access-key: password
+        s3.region: us-east-1
+        warehouse: s3a://ecommerce/iceberg/
+        s3.endpoint: http://lakehouse.io
+    platform_instance: iceberg
+    profiling:
+      enabled: true
+
+sink:
+# sink configs

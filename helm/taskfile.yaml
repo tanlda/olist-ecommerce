@@ -1,0 +1,77 @@
+version: "3"
+
+tasks:
+  init:
+    cmds:
+      - cmd: sudo kubeadm init --config ./configs/cluster.yaml {{ .CLI_ARGS }}
+
+  config:
+    cmds:
+      - mkdir -p "$HOME/.kube"
+      - sudo cp /etc/kubernetes/admin.conf "$HOME/.kube/config"
+      - sudo chown "$(id -u):$(id -u)" "$HOME/.kube/config"
+
+  master:
+    cmds:
+      - task: init
+      - task: config
+      - cmd: kubectl label node "master" kubernetes.io/role=master
+
+  worker:
+    cmds:
+      - cmd: sshpass -p 'password' ssh root@192.168.1.10 '{{ .RESET_CMD }}'
+      - cmd: sshpass -p 'password' ssh root@192.168.1.10 '{{ .JOIN_CMD }}'
+      - cmd: kubectl label node "worker-01" kubernetes.io/role=worker
+    vars:
+      RESET_CMD:
+        sh: echo "sudo kubeadm reset --force --cri-socket=unix:///var/run/crio/crio.sock"
+      JOIN_CMD:
+        sh: echo "sudo $(kubeadm token create --print-join-command) --cri-socket=unix:///var/run/crio/crio.sock"
+
+  reset:
+    cmds:
+      - cmd: sudo kubeadm reset --cri-socket=unix:///var/run/crio/crio.sock --force
+
+  dep:
+    cmds:
+      - cmd: |
+          cwd=$(pwd)
+          for dir in $(ls -d charts/*/); do
+            cd $cwd/$dir; helm dep build &
+          done
+          wait
+          cd $cwd
+
+  template:
+    cmds:
+      - cmd: helmfile template --skip-deps --debug > test.yaml
+
+  db: # AWS DMS
+    cmds:
+      # - cmd: sudo ufw allow 5432/tcp
+      - cmd: |
+          while true; do
+            kubectl port-forward pod/database-0 5432:5432 --namespace io --address 0.0.0.0
+            sleep 5
+          done
+
+  doc: # AWS DMS
+    cmds:
+      # - cmd: sudo ufw allow 27017/tcp
+      - cmd: |
+          while true; do
+            kubectl port-forward svc/document 27017:27017 --namespace io --address 0.0.0.0
+            sleep 5
+          done
+
+  uninstall:
+    cmds:
+      - cmd: helm uninstall airflow -namespace airflow --ignore-not-found
+      - cmd: helm uninstall dagster -namespace dagster --ignore-not-found
+      - cmd: helm uninstall visual -namespace visual --ignore-not-found
+      - cmd: helm uninstall flink -namespace flink --ignore-not-found
+      - cmd: helm uninstall trino -namespace sql --ignore-not-found
+
+  hub:
+    cmds:
+      - cmd: helmfile apply --file helmfile.hub.yaml --skip-deps

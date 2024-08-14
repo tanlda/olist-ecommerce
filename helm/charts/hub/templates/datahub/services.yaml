@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: datahub
+  namespace: hub
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/instance: hub
+    app.kubernetes.io/name: datahub-frontend
+  ports:
+    - port: 80
+      targetPort: 9002
+      protocol: TCP
+      name: http

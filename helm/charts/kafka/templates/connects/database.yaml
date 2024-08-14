@@ -1,0 +1,227 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: database
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  replicas: 1
+  image: registry.io/kafka-connect:latest
+  bootstrapServers: cluster-kafka-bootstrap:9092
+  config:
+    group.id: database
+    offset.storage.topic: database-connect-offsets
+    config.storage.topic: database-connect-configs
+    status.storage.topic: database-connect-status
+    # -1 means it will use the default replication factor configured in the broker
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+    key.converter: io.confluent.connect.avro.AvroConverter
+    value.converter: io.confluent.connect.avro.AvroConverter
+    key.converter.schema.registry.url: http://schema-registry:8081
+    value.converter.schema.registry.url: http://schema-registry:8081
+  template:
+    pod:
+      affinity:
+{{ .Values.master.affinity | toYaml | nindent 8 }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: source-database-orders
+  labels:
+    strimzi.io/cluster: database
+spec:
+  tasksMax: 1
+  class: io.debezium.connector.postgresql.PostgresConnector
+  autoRestart:
+    enabled: true
+  config:
+    plugin.name: pgoutput
+    slot.name: orders
+    topic.prefix: orders
+    database.server.name: ecommerce  # debezium
+    database.hostname: database.io
+    database.port: 5432
+    database.user: admin
+    database.password: password
+    database.dbname: ecommerce
+    table.include.list: public.orders
+    transforms: unwrap
+    transforms.unwrap.type: io.debezium.transforms.ExtractNewRecordState
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: source-database-order-items
+  labels:
+    strimzi.io/cluster: database
+spec:
+  tasksMax: 1
+  class: io.debezium.connector.postgresql.PostgresConnector
+  autoRestart:
+    enabled: true
+  config:
+    plugin.name: pgoutput
+    slot.name: order_items
+    topic.prefix: order_items
+    database.server.name: ecommerce  # debezium
+    database.hostname: database.io
+    database.port: 5432
+    database.user: admin
+    database.password: password
+    database.dbname: ecommerce
+    table.include.list: public.order_items
+    transforms: unwrap
+    transforms.unwrap.type: io.debezium.transforms.ExtractNewRecordState
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: source-database-order-payments
+  labels:
+    strimzi.io/cluster: database
+spec:
+  tasksMax: 1
+  class: io.debezium.connector.postgresql.PostgresConnector
+  autoRestart:
+    enabled: true
+  config:
+    plugin.name: pgoutput
+    slot.name: order_payments
+    topic.prefix: order_payments
+    database.server.name: ecommerce  # debezium
+    database.hostname: database.io
+    database.port: 5432
+    database.user: admin
+    database.password: password
+    database.dbname: ecommerce
+    table.include.list: public.order_payments
+    transforms: unwrap
+    transforms.unwrap.type: io.debezium.transforms.ExtractNewRecordState
+---
+{{/*apiVersion: kafka.strimzi.io/v1beta2*/}}
+{{/*kind: KafkaConnector*/}}
+{{/*metadata:*/}}
+{{/*  name: sink-opensearch-orders*/}}
+{{/*  labels:*/}}
+{{/*    strimzi.io/cluster: database*/}}
+{{/*spec:*/}}
+{{/*  tasksMax: 1*/}}
+{{/*  class: io.aiven.kafka.connect.opensearch.OpensearchSinkConnector*/}}
+{{/*  autoRestart:*/}}
+{{/*    enabled: true*/}}
+{{/*  config:*/}}
+{{/*    connection.url: http://opensearch.io*/}}
+{{/*    topics: orders.public.orders*/}}
+{{/*    batch.size: 1000*/}}
+{{/*    key.ignore: true*/}}
+{{/*    schema.ignore: true*/}}
+{{/*    behavior.on.null.values: ignore*/}}
+{{/*    behavior.on.malformed.documents: warn*/}}
+{{/*    opensearch.index.auto.create: true*/}}
+{{/*    opensearch.index.name: orders*/}}
+{{/*    opensearch.topic.index.map: orders.public.orders:orders*/}}
+{{/*    opensearch.write.method: upsert*/}}
+{{/*    opensearch.document.id.extractor: ValueJsonPath*/}}
+{{/*    opensearch.document.id.extractor.value.path: $.id*/}}
+{{/*    opensearch.max.retries: 3*/}}
+{{/*    opensearch.retry.backoff.ms: 1000*/}}
+{{/*    max.buffered.records: 20000*/}}
+{{/*    retries: 3*/}}
+{{/*---*/}}
+{{/*apiVersion: kafka.strimzi.io/v1beta2*/}}
+{{/*kind: KafkaConnector*/}}
+{{/*metadata:*/}}
+{{/*  name: sink-opensearch-order-items*/}}
+{{/*  labels:*/}}
+{{/*    strimzi.io/cluster: database*/}}
+{{/*spec:*/}}
+{{/*  tasksMax: 1*/}}
+{{/*  class: io.aiven.kafka.connect.opensearch.OpensearchSinkConnector*/}}
+{{/*  autoRestart:*/}}
+{{/*    enabled: true*/}}
+{{/*  config:*/}}
+{{/*    connection.url: http://opensearch.io*/}}
+{{/*    topics: order_items.public.order_items*/}}
+{{/*    batch.size: 1000*/}}
+{{/*    key.ignore: true*/}}
+{{/*    schema.ignore: true*/}}
+{{/*    behavior.on.null.values: ignore*/}}
+{{/*    behavior.on.malformed.documents: warn*/}}
+{{/*    opensearch.index.auto.create: true*/}}
+{{/*    opensearch.index.name: order_items*/}}
+{{/*    opensearch.topic.index.map: order_items.public.order_items:order_items*/}}
+{{/*    opensearch.write.method: upsert*/}}
+{{/*    opensearch.document.id.extractor: ValueJsonPath*/}}
+{{/*    opensearch.document.id.extractor.value.path: $.id*/}}
+{{/*    opensearch.max.retries: 3*/}}
+{{/*    opensearch.retry.backoff.ms: 1000*/}}
+{{/*    max.buffered.records: 20000*/}}
+{{/*    retries: 3*/}}
+{{/*---*/}}
+{{/*apiVersion: kafka.strimzi.io/v1beta2*/}}
+{{/*kind: KafkaConnector*/}}
+{{/*metadata:*/}}
+{{/*  name: sink-opensearch-order-payments*/}}
+{{/*  labels:*/}}
+{{/*    strimzi.io/cluster: database*/}}
+{{/*spec:*/}}
+{{/*  tasksMax: 1*/}}
+{{/*  class: io.aiven.kafka.connect.opensearch.OpensearchSinkConnector*/}}
+{{/*  autoRestart:*/}}
+{{/*    enabled: true*/}}
+{{/*  config:*/}}
+{{/*    connection.url: http://opensearch.io*/}}
+{{/*    topics: order_payments.public.order_payments*/}}
+{{/*    batch.size: 1000*/}}
+{{/*    key.ignore: true*/}}
+{{/*    schema.ignore: true*/}}
+{{/*    behavior.on.null.values: ignore*/}}
+{{/*    behavior.on.malformed.documents: warn*/}}
+{{/*    opensearch.index.auto.create: true*/}}
+{{/*    opensearch.index.name: order_payments*/}}
+{{/*    opensearch.topic.index.map: order_payments.public.order_payments:order_payments*/}}
+{{/*    opensearch.write.method: upsert*/}}
+{{/*    opensearch.document.id.extractor: ValueJsonPath*/}}
+{{/*    opensearch.document.id.extractor.value.path: $.id*/}}
+{{/*    opensearch.max.retries: 3*/}}
+{{/*    opensearch.retry.backoff.ms: 1000*/}}
+{{/*    max.buffered.records: 20000*/}}
+{{/*    retries: 3*/}}
+{{/*---*/}}
+{{/*apiVersion: kafka.strimzi.io/v1beta2*/}}
+{{/*kind: KafkaConnector*/}}
+{{/*metadata:*/}}
+{{/*  name: sink-opensearch-order-reviews*/}}
+{{/*  labels:*/}}
+{{/*    strimzi.io/cluster: database*/}}
+{{/*spec:*/}}
+{{/*  tasksMax: 1*/}}
+{{/*  class: io.aiven.kafka.connect.opensearch.OpensearchSinkConnector*/}}
+{{/*  autoRestart:*/}}
+{{/*    enabled: true*/}}
+{{/*  config:*/}}
+{{/*    connection.url: http://opensearch.io*/}}
+{{/*    topics: order_reviews.ecommerce.order_reviews  # ecommerce instead of public*/}}
+{{/*    batch.size: 1000*/}}
+{{/*    key.ignore: true*/}}
+{{/*    schema.ignore: true*/}}
+{{/*    behavior.on.null.values: ignore*/}}
+{{/*    behavior.on.malformed.documents: warn*/}}
+{{/*    key.converter.schemas.enable: false*/}}
+{{/*    value.converter.schemas.enable: false*/}}
+{{/*    key.converter: org.apache.kafka.connect.json.JsonConverter*/}}
+{{/*    value.converter: org.apache.kafka.connect.json.JsonConverter*/}}
+{{/*    opensearch.index.auto.create: true*/}}
+{{/*    opensearch.index.name: order_reviews*/}}
+{{/*    opensearch.topic.index.map: order_reviews.public.order_reviews:order_reviews*/}}
+{{/*    opensearch.write.method: upsert*/}}
+{{/*    opensearch.document.id.extractor: ValueJsonPath*/}}
+{{/*    opensearch.document.id.extractor.value.path: $.id*/}}
+{{/*    opensearch.max.retries: 3*/}}
+{{/*    opensearch.retry.backoff.ms: 1000*/}}
+{{/*    max.buffered.records: 20000*/}}
+{{/*    retries: 3*/}}

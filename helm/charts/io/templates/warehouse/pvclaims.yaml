@@ -1,0 +1,26 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: warehouse
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: Immediate
+---
+{{- range $i, $e := until 2 -}}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: warehouse-pv-{{ $i }}
+spec:
+  capacity:
+    storage: 24Gi
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: warehouse
+  claimRef:
+    namespace: {{ $.Release.Namespace }}
+    name: warehouse-data-warehouse-{{ $i }}  # reserved
+  hostPath:
+    path: /kube/ecommerce/io/warehouse/warehouse-pv-{{ $i }}
+  nodeAffinity:
+{{ $.Values.master.volume | toYaml | nindent 4 }}
+---
+{{- end -}}

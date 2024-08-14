@@ -1,0 +1,11 @@
+.vscode/
+.idea/
+
+*/**/terraform.tfvars
+*/**/.terraform
+*/**/.terragrunt-cache
+*/**/.terraform.lock.hcl
+*/**/*tfstate*.idea
+*/**/.tfplan
+
+*.env

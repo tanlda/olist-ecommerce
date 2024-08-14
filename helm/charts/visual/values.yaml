@@ -1,0 +1,59 @@
+global: { }
+
+nameOverride: ""
+fullnameOverride: ""
+
+master:
+  volume: &masterVolume
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/role
+              operator: In
+              values:
+                - master
+
+superset:
+  enabled: true
+  fullnameOverride: superset
+
+  service:
+    type: LoadBalancer
+    port: 80
+    nodePort:
+      http: null
+
+  extraSecretEnv:
+    SUPERSET_SECRET_KEY: superset
+
+  init:
+    adminUser:
+      username: admin
+      password: password
+
+  postgresql:
+    auth:
+      username: superset
+      password: superset
+      database: superset
+      postgresPassword: superset
+    primary:
+      persistence:
+        size: 2Gi
+        storageClass: local
+        existingClaim: superset-postgresql-pvc
+      nodeSelector:
+        kubernetes.io/role: master
+
+opensearch:
+  enabled: true
+  nameOverride: opensearch
+  opensearchHosts: "http://opensearch.io"
+
+  service:
+    type: LoadBalancer
+
+  extraEnvs:
+    - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+      value: "true"
+

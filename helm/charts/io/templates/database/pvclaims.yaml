@@ -1,0 +1,24 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: database
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: Immediate
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: database-pv-0
+spec:
+  capacity:
+    storage: 6Gi
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: database
+  claimRef:
+    namespace: {{ .Release.Namespace }}
+    name: database-data-database-0  # reserved
+  hostPath:
+    path: /kube/ecommerce/io/database/database-pv-0
+  nodeAffinity:
+    {{- .Values.master.volume | toYaml | nindent 4 }}
+---

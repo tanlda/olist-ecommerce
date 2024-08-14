@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: iceberg
+  namespace: io
+  labels:
+    app: iceberg
+stringData:
+  AWS_REGION: "us-east-1"
+  AWS_ACCESS_KEY_ID: "admin"
+  AWS_SECRET_ACCESS_KEY: "password"
+  REST_CREDENTIAL: "iceberg"  # connect to http://iceberg.io
+
+  CATALOG_IO__IMPL: "org.apache.iceberg.aws.s3.S3FileIO"
+  CATALOG_WAREHOUSE: "s3://ecommerce/iceberg"
+  CATALOG_S3_ENDPOINT: "http://lakehouse.io"
+  CATALOG_S3_PATH__STYLE__ACCESS: "true"
+  CATALOG_CACHE__ENABLED: "false"
+
+  CATALOG_CATALOG__IMPL: "org.apache.iceberg.jdbc.JdbcCatalog"
+  CATALOG_URI: "jdbc:postgresql://catalog.io:5432/iceberg"
+  CATALOG_JDBC_USER: "iceberg"
+  CATALOG_JDBC_PASSWORD: "iceberg"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: iceberg
+  namespace: io
+  labels:
+    app: iceberg
+spec:
+  serviceName: iceberg
+  replicas: {{ .Values.iceberg.instances }}
+  selector:
+    matchLabels:
+      app: iceberg
+  template:
+    metadata:
+      labels:
+        app: iceberg
+    spec:
+      containers:
+        - name: iceberg
+          image: tabulario/iceberg-rest:1.5.0
+          ports:
+            - containerPort: 8181
+          envFrom:
+            - secretRef:
+                name: iceberg
+      affinity:
+{{ .Values.worker.affinity | toYaml | nindent 8 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iceberg
+  namespace: io
+  labels:
+    app: iceberg
+spec:
+  type: LoadBalancer
+  selector:
+    app: iceberg
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8181
+---

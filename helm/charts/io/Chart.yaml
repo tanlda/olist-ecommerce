@@ -1,0 +1,31 @@
+apiVersion: v2
+name: io
+description: A Helm chart for Kubernetes
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+
+dependencies:
+  - alias: storage
+    name: minio
+    version: 14.3.4
+    condition: storage.enabled
+    repository: oci://registry-1.docker.io/bitnamicharts
+
+  - alias: lakehouse
+    name: minio
+    version: 14.3.4
+    condition: lakehouse.enabled
+    repository: oci://registry-1.docker.io/bitnamicharts
+
+  - name: opensearch
+    version: 2.21.0
+    condition: opensearch.enabled
+    repository: https://opensearch-project.github.io/helm-charts
+
+  - alias: document
+    name: mongodb
+    version: 15.6.14
+    condition: document.enabled
+    repository: https://charts.bitnami.com/bitnami

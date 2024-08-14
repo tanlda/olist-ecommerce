@@ -1,0 +1,57 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dagster-postgresql-pv
+spec:
+  storageClassName: local
+  capacity:
+    storage: 4Gi
+  volumeMode: Filesystem
+  hostPath:
+    path: /kube/ecommerce/dagster/postgresql-pv
+  accessModes: [ "ReadWriteOnce" ]
+  nodeAffinity:
+{{ .Values.master.volume | toYaml | nindent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dagster-postgresql-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: local
+  accessModes: [ "ReadWriteOnce" ]
+  volumeName: dagster-postgresql-pv
+  resources:
+    requests:
+      storage: 4Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dagster-rabbitmq-pv
+spec:
+  storageClassName: local
+  capacity:
+    storage: 4Gi
+  volumeMode: Filesystem
+  hostPath:
+    path: /kube/ecommerce/dagster/rabbitmq-pv
+  accessModes: [ "ReadWriteOnce" ]
+  nodeAffinity:
+{{ .Values.master.volume | toYaml | nindent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dagster-rabbitmq-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: local
+  accessModes: [ "ReadWriteOnce" ]
+  volumeName: dagster-rabbitmq-pv
+  resources:
+    requests:
+      storage: 4Gi
+---

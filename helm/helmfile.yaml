@@ -1,0 +1,223 @@
+environments:
+  default:
+    values:
+      - values.yaml
+---
+repositories:
+  - name: metallb
+    url: https://metallb.github.io/metallb
+
+  - name: sgo
+    url: https://stackgres.io/downloads/stackgres-k8s/stackgres/helm
+
+  - name: spo
+    url: https://kubeflow.github.io/spark-operator
+
+  - name: sko
+    url: https://strimzi.io/charts
+
+  - name: flo
+    url: https://downloads.apache.org/flink/flink-kubernetes-operator-1.9.0
+
+  - name: nvdp
+    url: https://nvidia.github.io/k8s-device-plugin
+
+releases:
+  - name: network
+    version: 0.1.0
+    chart: charts/network
+    createNamespace: true
+    disableValidation: true
+    namespace: network
+
+  - name: storage
+    version: 0.1.0
+    chart: charts/storage
+    disableValidation: true
+    createNamespace: true
+    namespace: storage
+
+  - name: dns
+    version: 0.1.0
+    chart: charts/dns
+    disableValidation: true
+    createNamespace: true
+    namespace: dns
+
+  - name: sgo
+    version: 1.10.0
+    chart: sgo/stackgres-operator
+    disableValidation: true
+    createNamespace: true
+    namespace: io
+    values:
+      - nameOverride: sgo
+      - fullnameOverride: sgo
+      - authentication:
+          user: admin
+          password: password
+      - adminui:
+          service:
+            type: LoadBalancer
+            exposeHTTP: true
+      - operator:
+          nodeSelector:
+            kubernetes.io/hostname: master
+      - restapi:
+          nodeSelector:
+            kubernetes.io/hostname: master
+
+  - name: spo
+    version: 1.2.15
+    condition: spo.enabled
+    chart: spo/spark-operator
+    disableValidation: true
+    createNamespace: true
+    namespace: spark
+    values:
+      - nameOverride: spo
+      - fullnameOverride: spo
+      - controller:
+          nodeSelector:
+            kubernetes.io/hostname: master
+      - webhook:
+          nodeSelector:
+            kubernetes.io/hostname: master
+
+  - name: sko
+    version: 0.42.0
+    condition: sko.enabled
+    chart: sko/strimzi-kafka-operator
+    disableValidation: true
+    createNamespace: true
+    namespace: kafka
+    hooks:
+      - events: [ ]  # "prepare"
+        command: bash
+        args:
+          - -c
+          - |
+            repo="https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/main/install/cluster-operator"
+            kubectl apply --server-side -f "$repo/040-Crd-kafka.yaml"
+            kubectl apply --server-side -f "$repo/040-Crd-kafka.yaml"
+            kubectl apply --server-side -f "$repo/041-Crd-kafkaconnect.yaml"
+            kubectl apply --server-side -f "$repo/042-Crd-strimzipodset.yaml"
+            kubectl apply --server-side -f "$repo/043-Crd-kafkatopic.yaml"
+            kubectl apply --server-side -f "$repo/044-Crd-kafkauser.yaml"
+            kubectl apply --server-side -f "$repo/045-Crd-kafkamirrormaker.yaml"
+            kubectl apply --server-side -f "$repo/046-Crd-kafkabridge.yaml"
+            kubectl apply --server-side -f "$repo/047-Crd-kafkaconnector.yaml"
+            kubectl apply --server-side -f "$repo/048-Crd-kafkamirrormaker2.yaml"
+            kubectl apply --server-side -f "$repo/049-Crd-kafkarebalance.yaml"
+            kubectl apply --server-side -f "$repo/04A-Crd-kafkanodepool.yaml"
+    values:
+      - watchNamespaces: [ "kafka" ]
+      - extraEnvs:
+          - name: KUBERNETES_SERVICE_DNS_DOMAIN
+            value: "cluster.local"
+      - nodeSelector:
+          kubernetes.io/hostname: master
+
+  - name: flo
+    version: 1.9.0
+    condition: sgo.enabled
+    chart: flo/flink-kubernetes-operator
+    disableValidation: true
+    createNamespace: true
+    namespace: flink
+    hooks:
+      - events: [ ]  # "prepare"
+        command: bash
+        args:
+          - -c
+          - |
+            repo="https://github.com/cert-manager/cert-manager/releases/download/v1.15.2"
+            kubectl apply --server-side -f "$repo/cert-manager.crds.yaml"
+    values:
+      - nameOverride: flo
+      - fullnameOverride: flo
+      - webhook: { create: false }
+      - watchNamespace: [ "flink" ]
+      - operatorPod:
+          nodeSelector:
+            kubernetes.io/hostname: master
+
+  - name: nvdp
+    version: 0.16.1
+    condition: nvdp.enabled
+    chart: nvdp/nvidia-device-plugin
+    createNamespace: true
+    namespace: nvdp
+    values:
+      - gfd:
+          enabled: true
+          namespaceOverride: nvdp
+      - nodeSelector:
+          kubernetes.io/hostname: master
+
+  - name: airflow
+    version: 0.1.0
+    chart: charts/airflow
+    condition: airflow.enabled
+    createNamespace: true
+    namespace: airflow
+
+  - name: dagster
+    version: 0.1.0
+    chart: charts/dagster
+    condition: dagster.enabled
+    createNamespace: true
+    namespace: dagster
+    values:
+      - kaggle:
+          json: |
+            {"username":"","key":""}
+
+  - name: ai
+    version: 0.1.0
+    chart: charts/ai
+    condition: ai.enabled
+    createNamespace: true
+    namespace: ai
+
+  - name: io
+    version: 0.1.0
+    chart: charts/io
+    condition: io.enabled
+    createNamespace: true
+    namespace: io
+
+  - name: spark
+    version: 0.1.0
+    chart: charts/spark
+    condition: spark.enabled
+    createNamespace: true
+    namespace: spark
+
+  - name: kafka
+    version: 0.1.0
+    chart: charts/kafka
+    condition: kafka.enabled
+    createNamespace: true
+    namespace: kafka
+
+  - name: flink
+    version: 0.1.0
+    chart: charts/flink
+    condition: flink.enabled
+    createNamespace: true
+    namespace: flink
+
+  - name: sql
+    version: 0.1.0
+    chart: charts/sql
+    condition: sql.enabled
+    createNamespace: true
+    namespace: sql
+
+  - name: visual
+    version: 0.1.0
+    chart: charts/visual
+    condition: visual.enabled
+    createNamespace: true
+    namespace: visual

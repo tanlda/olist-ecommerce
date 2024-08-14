@@ -1,0 +1,35 @@
+version: "3"
+
+tasks:
+  build:
+    cmds:
+      - docker build -t {{ .REPO }}/{{ .NAME }}:{{ .TAG }} {{ .TAG }}
+      - docker push {{ .REPO }}/{{ .NAME }}:{{ .TAG }}
+    vars:
+      REPO: '{{ .REPO | default "registry.io" }}'
+      NAME: '{{ .NAME | default "notebook" }}'
+      TAG: '{{ .TAG | default "latest" }}'
+
+  spark:
+    cmds:
+      - task: build
+        vars:
+          TAG: spark
+
+  gpu:
+    cmds:
+      - task: build
+        vars:
+          TAG: gpu
+
+  flink:
+    cmds:
+      - task: build
+        vars:
+          TAG: flink
+
+  mvn:
+    cmds:
+      - task: build
+        vars:
+          TAG: mvn

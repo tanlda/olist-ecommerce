@@ -1,0 +1,54 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: flink
+spec:
+  image: registry.io/flink
+  imagePullPolicy: Always
+  flinkVersion: v1_18
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "4"
+  serviceAccount: flink
+  podTemplate:
+    spec:
+      containers:
+        - name: flink-main-container
+      affinity:
+        {{- .Values.worker.affinity | toYaml | nindent 8 }}
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+    replicas: 1
+  job:
+    jarURI: local:///opt/flink/opt/flink-python-1.18.1.jar
+    entryClass: "org.apache.flink.client.python.PythonDriver"
+    args:
+      - -pyclientexec
+      - /usr/bin/python3
+      - -py
+      - /opt/flink/usrlib/main.py
+    parallelism: 1
+    upgradeMode: stateless
+  ingress:
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-webui
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: flink
+    component: jobmanager
+    type: flink-native-kubernetes
+  ports:
+    - port: 80
+      name: webui
+      targetPort: 8081
+  loadBalancerIP: 192.168.1.92

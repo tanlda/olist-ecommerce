@@ -1,0 +1,192 @@
+global: { }
+
+master:
+  affinity: &masterAffinity
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                  - master
+
+  selector: &masterSelector
+    kubernetes.io/hostname: master
+
+  volume: &masterVolume
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/role
+              operator: In
+              values:
+                - master
+
+worker:
+  affinity: &workerAffinity
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 50
+          preference:
+            matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                  - worker
+        - weight: 10
+          preference:
+            matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                  - master
+
+airflow:
+  enabled: true
+
+  airflow:
+    image:
+      repository: registry.io/airflow
+      pullPolicy: Always
+      tag: 0.1.1.19
+
+    executor: KubernetesExecutor
+    fernetKey: 7T512UXSSmBOkpWimFHIVb8jK6lfmSAvx4mO6Arehnc=
+    webserverSecretKey: 7T512UXSSmBOkpWimFHIVb8jK6lfmSAvx4mO6Arehnc=
+
+    dbMigrations:
+      affinity:
+        *masterAffinity
+
+    kubernetesPodTemplate:
+      affinity:
+        *workerAffinity
+
+    users:
+      - role: Admin
+        username: admin
+        password: password
+        email: admin@example.com
+        firstName: admin
+        lastName: admin
+
+    extraEnv:
+      - name: AIRFLOW__WEBSERVER__SHOW_TRIGGER_FORM_IF_NO_PARAMS
+        value: "true"
+
+    connections:
+      - id: spark
+        type: spark
+        host: k8s://https://kubernetes.default.svc.cluster.local
+        port: 443
+
+      - id: storage
+        type: minio
+        host: storage.io
+        port: 80
+        login: admin
+        password: password
+        extra: |
+          { "region": "us-east-1", "secure": false }
+
+      - id: lakehouse
+        type: minio
+        host: lakehouse.io
+        port: 80
+        login: admin
+        password: password
+        extra: |
+          { "region": "us-east-1", "secure": false }
+
+      - id: database
+        type: postgres
+        host: database.io
+        schema: ecommerce
+        port: 5432
+        login: admin
+        password: password
+
+      - id: warehouse
+        type: postgres
+        host: warehouse.io
+        schema: ecommerce
+        port: 5432
+        login: admin
+        password: password
+
+      - id: document
+        type: http
+        host: document.io
+        schema: admin
+        port: 27017
+        login: admin
+        password: password
+
+      - id: iceberg
+        type: http
+        host: iceberg.io
+        login: admin
+        password: password
+        port: 80
+        extra: |
+          { "region": "us-east-1", "uri": "http://iceberg.io", "endpoint": "http://lakehouse.io" }
+
+    extraVolumes:
+      - name: spark
+        configMap:
+          name: airflow-spark
+
+    extraVolumeMounts:
+      - mountPath: /opt/spark/templates
+        readOnly: true
+        name: spark
+
+  web:
+    service:
+      type: LoadBalancer
+      externalPort: 80
+
+  workers:
+    enabled: false
+
+  flower:
+    enabled: false
+
+  redis:
+    enabled: false
+
+  postgresql:
+    postgresqlDatabase: airflow
+    postgresqlUsername: postgres
+    postgresqlPassword: password
+
+    master:
+      affinity:
+        *masterAffinity
+
+    persistence:
+      storageClass: airflow
+      size: 6Gi
+
+  pgbouncer:
+    affinity:
+      *masterAffinity
+
+  scheduler:
+    logCleanup:
+      enabled: false
+    affinity:
+      *workerAffinity
+
+  triggerer:
+    affinity:
+      *masterAffinity
+
+  logs:
+    persistence:
+      enabled: true
+      storageClass: airflow-nfs
+      existingClaim: airflow-logs-pvc
+      accessMode: ReadWriteMany
+      size: 6Gi

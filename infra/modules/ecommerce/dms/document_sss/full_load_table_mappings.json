@@ -1,0 +1,14 @@
+{
+  "rules": [
+    {
+      "rule-type": "selection",
+      "rule-id": "1",
+      "rule-name": "include table",
+      "object-locator": {
+        "schema-name": "ecommerce",
+        "table-name": "order_reviews"
+      },
+      "rule-action": "include"
+    }
+  ]
+}

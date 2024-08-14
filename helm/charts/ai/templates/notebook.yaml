@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ai-notebook-pv
+spec:
+  storageClassName: local
+  accessModes: [ "ReadWriteMany" ]
+  capacity:
+    storage: 2Gi
+  volumeMode: Filesystem
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /kube/ecommerce/ai/notebook
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ai-notebook-huggingface-pv
+spec:
+  storageClassName: local
+  accessModes: [ "ReadWriteMany" ]
+  capacity:
+    storage: 24Gi
+  volumeMode: Filesystem
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /kube/ecommerce/ai/huggingface
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/role
+              operator: In
+              values:
+                - master
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notebook-huggingface-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: local
+  accessModes: [ "ReadWriteMany" ]
+  resources:
+    requests:
+      storage: 24Gi
+  volumeName: ai-notebook-huggingface-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notebook-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: local
+  accessModes: [ "ReadWriteMany" ]
+  resources:
+    requests:
+      storage: 2Gi
+  volumeName: ai-notebook-pv
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notebook
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notebook
+  template:
+    metadata:
+      labels:
+        app: notebook
+    spec:
+      containers:
+        - name: notebook
+          image: registry.io/notebook:gpu
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /home/jovyan/work
+              name: notebook
+            - mountPath: /root/.cache/huggingface
+              name: huggingface
+          ports:
+            - containerPort: 8888
+      volumes:
+        - name: notebook
+          persistentVolumeClaim:
+            claimName: notebook-pvc
+        - name: huggingface
+          persistentVolumeClaim:
+            claimName: notebook-huggingface-pvc
+      nodeSelector:
+        kubernetes.io/hostname: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notebook
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: notebook
+  type: LoadBalancer
+  loadBalancerIP: {{ .Values.notebook.service.host }}
+  ports:
+    - port: 80
+      targetPort: 8888
+---

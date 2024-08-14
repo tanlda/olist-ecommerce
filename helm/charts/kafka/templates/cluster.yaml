@@ -1,0 +1,65 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: dual
+  labels:
+    strimzi.io/cluster: cluster
+spec:
+  replicas: {{ .Values.primary.replicas }}
+  roles:
+    - broker
+    - controller
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        size: 16Gi
+        type: persistent-claim
+        deleteClaim: false
+        overrides:
+          {{- range $i, $_ := until (.Values.primary.replicas | int) }}
+          - broker: {{ $i }}
+            class: kafka-{{ $i }}
+          {{- end }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: cluster
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    version: 3.7.0
+    metadataVersion: 3.7-IV4
+    template:
+      pod:
+        securityContext:
+          runAsUser: 0
+          fsGroup: 0
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+        configuration:
+          useServiceDnsDomain: true
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+        configuration:
+          useServiceDnsDomain: true
+    config:
+      default.replication.factor: {{ .Values.primary.replicas }}
+      offsets.topic.replication.factor: {{ .Values.primary.replicas }}
+      transaction.state.log.replication.factor: {{ .Values.primary.replicas }}
+      min.insync.replicas: {{ max 1 (sub .Values.primary.replicas 1) }}
+  pod:
+    affinity:
+{{ .Values.master.affinity | toYaml | nindent 6 }}
+  entityOperator:
+    topicOperator: { }
+    userOperator: { }
+---

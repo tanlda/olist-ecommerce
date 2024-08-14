@@ -1,0 +1,12 @@
+version: "3"
+
+tasks:
+  build:
+    cmds:
+      - docker build -t {{ .REPO }}/{{ .NAME }}:{{ .TAG }} .
+      - docker push {{ .REPO }}/{{ .NAME }}:{{ .TAG }}
+    vars:
+      REPO: '{{ default "registry.io" .REPO }}'
+      NAME: '{{ default "kafka-connect" .NAME }}'
+      TAG: '{{ default "latest" .TAG }}'
+

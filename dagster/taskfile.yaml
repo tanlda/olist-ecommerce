@@ -1,0 +1,27 @@
+version: "3"
+
+tasks:
+  build:
+    cmds:
+      - docker build -t {{ .REPO }}/{{ .NAME }}:{{ .TAG }} .
+      - docker push {{ .REPO }}/{{ .NAME }}:{{ .TAG }}
+    vars:
+      REPO: '{{ default "registry.io" .REPO }}'
+      NAME: '{{ default "dagster-ecommerce" .NAME }}'
+      TAG: '{{ default "latest" .TAG }}'
+
+  web:
+    cmds:
+      - docker build -t {{ .REPO }}/{{ .NAME }}:{{ .TAG }} -f webserver/Dockerfile .
+      - docker push {{ .REPO }}/{{ .NAME }}:{{ .TAG }}
+    vars:
+      REPO: '{{ default "registry.io" .REPO }}'
+      NAME: '{{ default "dagster-webserver" .NAME }}'
+      TAG: '{{ default "latest" .TAG }}'
+
+  clean:
+    cmds:
+      - for: [ "Succeeded", "Terminated" ]
+        cmd: kubectl delete pods --force --field-selector status.phase={{ .ITEM }} --namespace {{ .NS }}
+    vars:
+      NS: '{{ .NS | default "dagster" }}'

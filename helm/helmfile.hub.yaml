@@ -1,0 +1,23 @@
+environments:
+  default:
+    values:
+      - values.yaml
+---
+repositories:
+  - name: datahub
+    url: https://helm.datahubproject.io
+
+releases:
+  - name: prerequisites
+    version: 0.1.13
+    chart: datahub/datahub-prerequisites
+    condition: prerequisites.enabled
+    createNamespace: true
+    namespace: hub
+
+  - name: hub
+    version: 0.1.0
+    chart: charts/hub
+    condition: hub.enabled
+    createNamespace: true
+    namespace: hub

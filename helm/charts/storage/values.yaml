@@ -1,0 +1,4 @@
+global: { }
+
+nfs:
+  server: 192.168.1.8

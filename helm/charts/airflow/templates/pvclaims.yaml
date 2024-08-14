@@ -1,0 +1,65 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: airflow
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: Immediate
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: airflow-postgresql-pv-0
+spec:
+  capacity:
+    storage: 6Gi
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: airflow
+  claimRef:
+    namespace: {{ .Release.Namespace }}
+    name: data-airflow-postgresql-0
+  hostPath:
+    path: /kube/ecommerce/airflow/postgresql-pv-0
+  nodeAffinity:
+{{ .Values.master.volume | toYaml | indent 4 }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: airflow-nfs
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: 192.168.1.8
+  share: /kube/ecommerce/airflow
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+mountOptions:
+  - nfsvers=4.1
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: airflow-logs-pv
+spec:
+  capacity:
+    storage: 6Gi
+  accessModes: [ "ReadWriteMany" ]
+  storageClassName: airflow-nfs
+  claimRef:
+    namespace: {{ .Release.Namespace }}
+    name: airflow-logs-pvc
+  nfs:
+    server: 192.168.1.8
+    path: /kube/ecommerce/airflow/logs-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-logs-pvc
+spec:
+  storageClassName: airflow-nfs
+  accessModes: [ "ReadWriteMany" ]
+  volumeName: airflow-logs-pv
+  resources:
+    requests:
+      storage: 6Gi
+---

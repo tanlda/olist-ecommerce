@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spark-driver
+rules:
+  - apiGroups: [ "" ]
+    verbs: [ "*" ]
+    resources: [ "pods", "services", "configmaps", "persistentvolumeclaims" ]
+---
+{{- range .Values.rbac -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spark-driver-{{ .ns }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ default .ns .name }}
+    namespace: {{ .ns }}
+roleRef:
+  kind: ClusterRole
+  name: spark-driver
+  apiGroup: rbac.authorization.k8s.io
+---
+{{- end -}}

@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stackgres-secret
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+stringData:
+  superuser-username: "postgres"
+  superuser-password: "password"
+  replication-username: "replicator"
+  replication-password: "password"
+  authenticator-username: "authenticator"
+  authenticator-password: "password"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stackgres-scripts
+  namespace: {{ .Release.Namespace }}
+data:
+  functions.sql: |
+    create or replace function describe_(table_name text)
+    returns table(column_name text, data_type text) as $$
+      begin
+          return query
+          select info.column_name::text, info.data_type::text
+          from information_schema.columns info
+          where info.table_schema = 'public' and info.table_name = $1;
+      end;
+    $$ language plpgsql;

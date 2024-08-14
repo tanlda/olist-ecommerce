@@ -1,0 +1,17 @@
+global: { }
+
+nameOverride: ""
+fullnameOverride: ""
+
+rbac:
+  - name: default
+    ns: spark
+
+  - name: default
+    ns: io
+
+  - name: dagster
+    ns: dagster
+
+  - name: airflow
+    ns: airflow

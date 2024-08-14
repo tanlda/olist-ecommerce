@@ -1,0 +1,10 @@
+version: "3"
+
+tasks:
+  master:
+    cmds:
+      - ansible-playbook -i inventory.ini ./playbook.master.yaml
+
+  worker:
+    cmds:
+      - ansible-playbook -i inventory.ini ./playbook.worker.yaml

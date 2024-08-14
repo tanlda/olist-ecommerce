@@ -1,0 +1,47 @@
+network:
+  enabled: true
+
+sgo:
+  enabled: true
+
+spo:
+  enabled: true
+
+sko:
+  enabled: true
+
+nvdp:
+  enabled: false
+
+ai:
+  enabled: false
+
+io:
+  enabled: true
+
+prerequisites:
+  enabled: true
+
+hub:
+  enabled: true
+
+airflow:
+  enabled: true
+
+dagster:
+  enabled: true
+
+spark:
+  enabled: true
+
+kafka:
+  enabled: true
+
+flink:
+  enabled: true
+
+sql:
+  enabled: true
+
+visual:
+  enabled: true

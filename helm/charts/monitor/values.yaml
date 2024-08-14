@@ -1,0 +1,28 @@
+global: { }
+
+nameOverride: ""
+fullnameOverride: ""
+
+promestack:
+  enabled: true
+
+  grafana:
+    enabled: true
+    nodeSelector:
+      kubernetes.io/hostname: master
+
+    admin:
+      existingSecret: grafana-admin
+
+  prometheus:
+    enabled: true
+
+  extraManifests:
+    - apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-admin
+      type: Opaque
+      stringData:
+        admin-user: admin
+        admin-password: password

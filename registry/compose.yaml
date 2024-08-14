@@ -1,0 +1,11 @@
+services:
+  registry:
+    image: registry
+    container_name: registry
+    restart: unless-stopped
+    ports:
+      - "80:5000"
+    environment:
+      REGISTRY_HTTP_ADDR: 0.0.0.0:5000
+    volumes:
+      - /registry:/var/lib/registry

@@ -1,0 +1,15 @@
+global: { }
+
+airflow:
+  enabled: false
+  replicaCount: 1
+  fullnameOverride: airflow
+  cloudflare:
+    tunnel_token: ""
+
+dagster:
+  enabled: false
+  replicaCount: 1
+  fullnameOverride: dagster
+  cloudflare:
+    tunnel_token: ""

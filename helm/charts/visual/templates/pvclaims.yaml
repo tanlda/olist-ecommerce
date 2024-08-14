@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: superset-postgresql-pv
+spec:
+  storageClassName: local
+  capacity:
+    storage: 2Gi
+  volumeMode: Filesystem
+  hostPath:
+    path: /kube/ecommerce/visual/superset/postgresql-pv
+  accessModes: [ "ReadWriteOnce" ]
+  nodeAffinity:
+{{ .Values.master.volume | toYaml | nindent 6 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: superset-postgresql-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: local
+  accessModes: [ "ReadWriteOnce" ]
+  volumeName: superset-postgresql-pv
+  resources:
+    requests:
+      storage: 2Gi
+---

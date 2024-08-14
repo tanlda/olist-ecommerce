@@ -1,0 +1,25 @@
+{{- range $i, $e := until 3 }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kafka-{{ $i }}
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: Immediate
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kafka-pv-{{ $i }}
+spec:
+  capacity:
+    storage: 16Gi
+  volumeMode: Filesystem
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: kafka-{{ $i }}
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /kube/ecommerce/kafka/kafka-pv-{{ $i }}
+  nodeAffinity:
+{{ $.Values.master.volume | toYaml | nindent 4 }}
+---
+{{- end }}

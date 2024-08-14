@@ -1,0 +1,57 @@
+global: { }
+
+trino:
+  enabled: true
+  nameOverride: trino
+  # fullnameOverride: trino
+  workerNameOverride: trino-worker
+  coordinatorNameOverride: trino-coordinator
+
+  auth:
+    passwordAuth: "admin:password"
+
+  server:
+    workers: 2
+
+  coordinator:
+    nodeSelector:
+      kubernetes.io/role: master
+
+  worker:
+    nodeSelector:
+      kubernetes.io/role: master
+
+  additionalCatalogs:
+    opensearch: |
+      connector.name=opensearch
+      opensearch.host=opensearch.io
+      opensearch.port=80
+      opensearch.default-schema-name=default
+
+    iceberg: |
+      connector.name=iceberg
+      iceberg.catalog.type=rest
+      iceberg.rest-catalog.uri=http://iceberg.io
+      iceberg.rest-catalog.warehouse=s3://ecommerce/iceberg/
+      hive.s3.endpoint=http://lakehouse.io
+      hive.s3.path-style-access=true
+      hive.s3.aws-access-key=admin
+      hive.s3.aws-secret-key=password
+
+    database: |
+      connector.name=postgresql
+      connection-url=jdbc:postgresql://database.io:5432/ecommerce
+      connection-user=admin
+      connection-password=password
+
+    document: |
+      connector.name=mongodb
+      mongodb.connection-url=mongodb://admin:password@document.io:27017/
+
+    kafka: |
+      connector.name=kafka
+      kafka.default-schema=default
+      kafka.hide-internal-columns=true
+      kafka.nodes=cluster-kafka-brokers.kafka:9092
+      kafka.confluent-schema-registry-url=http://schema-registry.kafka:8081
+      kafka.table-description-supplier=CONFLUENT

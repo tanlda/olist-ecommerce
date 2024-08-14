@@ -1,0 +1,101 @@
+apiVersion: stackgres.io/v1
+kind: SGInstanceProfile
+metadata:
+  name: database-profile
+  namespace: {{ .Release.Namespace }}
+spec:
+  cpu: "1"
+  memory: "2Gi"
+---
+apiVersion: stackgres.io/v1
+kind: SGPostgresConfig
+metadata:
+  name: database-pgconfig
+  namespace: {{ .Release.Namespace }}
+spec:
+  postgresVersion: "16"
+  postgresql.conf:
+    shared_buffers: "512MB"
+    random_page_cost: "1.5"
+    password_encryption: "scram-sha-256"
+    shared_preload_libraries: "pg_stat_statements,auto_explain"
+    log_checkpoints: "on"
+---
+apiVersion: stackgres.io/v1
+kind: SGPoolingConfig
+metadata:
+  name: database-poolconfig
+  namespace: {{ .Release.Namespace }}
+spec:
+  pgBouncer:
+    pgbouncer.ini:
+      pgbouncer:
+        pool_mode: transaction
+        max_client_conn: "1000"
+        default_pool_size: "80"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-scripts-config
+  namespace: {{ .Release.Namespace }}
+data:
+  replica.sql: |
+    -- ALTER TABLE orders REPLICA IDENTITY FULL;
+    -- ALTER TABLE order_items REPLICA IDENTITY FULL;
+    -- ALTER TABLE order_payments REPLICA IDENTITY FULL;
+---
+apiVersion: stackgres.io/v1
+kind: SGScript
+metadata:
+  name: database-scripts
+  namespace: {{ .Release.Namespace }}
+spec:
+  scripts:
+    - name: create-admin-user
+      script: CREATE USER admin PASSWORD 'password' SUPERUSER REPLICATION;
+    - name: create-admin-database
+      script: CREATE DATABASE admin OWNER admin;
+    - name: create-ecommerce-database
+      script: CREATE DATABASE ecommerce;
+    - name: create-functions
+      database: ecommerce
+      scriptFrom:
+        configMapKeyRef:
+          name: stackgres-scripts
+          key: functions.sql
+---
+apiVersion: stackgres.io/v1
+kind: SGCluster
+metadata:
+  name: database
+  namespace: {{ .Release.Namespace }}
+spec:
+  postgres:
+    version: "16"
+    extensions: [ ]
+  instances: 1
+  profile: development
+  sgInstanceProfile: database-profile
+  pods:
+    scheduling:
+      nodeSelector:
+        kubernetes.io/hostname: master
+    disableConnectionPooling: true  # Kafka connect can't create replication slots via pgbouncer
+    persistentVolume:
+      storageClass: database
+      size: 6Gi
+  configurations:
+    sgPostgresConfig: database-pgconfig
+    # sgPoolingConfig: database-poolconfig
+    credentials:
+      users:
+        {{- .Values.stackgres.users | toYaml | nindent 8 }}
+  managedSql:
+    scripts:
+      - sgScript: database-scripts
+  postgresServices: # Port forward
+    primary:
+      type: LoadBalancer
+    replicas:
+      type: LoadBalancer
