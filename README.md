@@ -1,6 +1,7 @@
 # End-to-End Data Engineering Project: Olist Ecommerce
 
 ![image](https://github.com/user-attachments/assets/1450f899-f8d3-4748-a300-4b4278d0a6ae)
+[Screenshots](https://github.com/tanlda/olist-ecommerce/tree/main/screenshots)
 
 ## Project Overview
 This project aims to build a comprehensive data pipeline for an e-commerce platform, providing hands-on experience with various data engineering tools and technologies. The pipeline will ingest data from multiple sources, process it, and store it in different formats for analysis and reporting.
