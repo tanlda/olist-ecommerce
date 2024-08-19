@@ -51,8 +51,7 @@ metadata:
   labels:
     app: schema-registry
 spec:
-  type: ClusterIP
-  clusterIP: None  # headless
+  type: LoadBalancer
   selector:
     app: schema-registry
   ports:

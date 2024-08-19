@@ -51,6 +51,10 @@ spec:
         tls: true
         configuration:
           useServiceDnsDomain: true
+      - name: external
+        port: 10092
+        type: loadbalancer
+        tls: false
     config:
       default.replication.factor: {{ .Values.primary.replicas }}
       offsets.topic.replication.factor: {{ .Values.primary.replicas }}
